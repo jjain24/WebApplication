@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html ng-app="app">
+  <head>
+    <title>ToDo App</title>
+	<style>
+    p.serif {
+    font-family: "Times New Roman", Times, serif;}
+    p.sansserif {
+    font-family: Arial, Helvetica, sans-serif;}
+    </style>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+    <h1 class=p.sansserif style="color:rgb(0,150,100);margin:100px 100px 30px 120px; font-size:xx-large;">All Things YET To Do</h1>
+    <ng-view></ng-view>
+    <!-- Libraries -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular-route.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular-resource.min.js"></script>
+
+    <!-- Template -->
+    <script type="text/ng-template" id="/todos.html">
+     <!-- Search: <input type="text" ng-model="search.name"> -->
+      <ul class=p.serif style="color:black;margin-left:75px;list-style-type: none;">
+        <li ng-repeat="todo in todos | filter: search">
+          <input style="width:30px;" type="checkbox" ng-model="todo.completed" ng-change="update($index)">
+          <a style="color:rgb(0,100,150);font-size:18px;" ng-show="!editing[$index]" href="#/{{todo._id}}">{{todo.name}}</a>
+          <button ng-show="!editing[$index]" ng-click="edit($index)">Edit</button>
+          <button ng-show="!editing[$index]" ng-click="remove($index)">Remove</button>
+          <input style="color:rgb(220,150,100);font-size:large;border:1px solid gray;" ng-show="editing[$index]" type="text" ng-model="todo.name">
+          <button ng-show="editing[$index]" ng-click="update($index)">Update</button>
+          <button ng-show="editing[$index]" ng-click="cancel($index)">Cancel</button>
+        </li>
+      </ul>
+      <p style= "color:darkblue;margin-left:120px;"> <input class=p.sansserif style="width:320px;border:1px solid grey;height:30px;font-size:medium" type="text" ng-model="newTodo"></p>
+	  <p class=p.sansserif style= "color:darkblue;margin-left:220px"> <button style="vertical-align:middle;horizontal-align:middle;" ng-click="save()">ADD A TASK</button></p> 
+    </script>
+
+    <script style="margin-left:120px;" type="text/ng-template" id="/todoDetails.html">
+      <h1 class=p.sansserif style="margin-left:120px;font-size:21spx;color:rgb(100,100,100);">{{ todo.name }}</h1>
+      <!-- completed: <input  type="checkbox" ng-model="todo.completed"><br> -->
+      <p style="margin-left:120px;"> ADD DETAILS: <textarea style="border:1px solid gray" ng-model="todo.note"></textarea><br><br>
+      <button style="margin-left:120px;" ng-click="update()">Update</button>
+      <!--<button ng-click="remove()">remove</button>-->
+      <button href="/">Cancel</button>
+    </script>
+
+    <script>
+      angular.module('app', ['ngRoute', 'ngResource'])
+
+        //---------------
+        // Services
+        //---------------
+
+        .factory('Todos', ['$resource', function($resource){
+          return $resource('/todos/:id', null, {
+            'update': { method:'PUT' }
+          });
+        }])
+
+        //---------------
+        // Controllers
+        //---------------
+
+        .controller('TodoController', ['$scope', 'Todos', function ($scope, Todos) {
+          $scope.editing = [];
+          $scope.todos = Todos.query();
+
+          $scope.save = function(){
+            if(!$scope.newTodo || $scope.newTodo.length < 1) return;
+            var todo = new Todos({ name: $scope.newTodo, completed: false });
+
+            todo.$save(function(){
+              $scope.todos.push(todo);
+              $scope.newTodo = ''; // clear textbox
+            });
+          }
+
+          $scope.update = function(index){
+            var todo = $scope.todos[index];
+            Todos.update({id: todo._id}, todo);
+            $scope.editing[index] = false;
+          }
+
+          $scope.edit = function(index){
+            $scope.editing[index] = angular.copy($scope.todos[index]);
+          }
+
+          $scope.cancel = function(index){
+            $scope.todos[index] = angular.copy($scope.editing[index]);
+            $scope.editing[index] = false;
+          }
+
+          $scope.remove = function(index){
+            var todo = $scope.todos[index];
+            Todos.remove({id: todo._id}, function(){
+              $scope.todos.splice(index, 1);
+            });
+          }
+        }])
+
+        .controller('TodoDetailCtrl', ['$scope', '$routeParams', 'Todos', '$location', function ($scope, $routeParams, Todos, $location) {
+          $scope.todo = Todos.get({id: $routeParams.id });
+
+          $scope.update = function(){
+            Todos.update({id: $scope.todo._id}, $scope.todo, function(){
+              $location.url('/');
+            });
+          }
+
+          $scope.remove = function(){
+            Todos.remove({id: $scope.todo._id}, function(){
+              $location.url('/');
+            });
+          }
+        }])
+
+        //---------------
+        // Routes
+        //---------------
+
+        .config(['$routeProvider', function ($routeProvider) {
+          $routeProvider
+            .when('/', {
+              templateUrl: '/todos.html',
+              controller: 'TodoController'
+            })
+
+            .when('/:id', {
+              templateUrl: '/todoDetails.html',
+              controller: 'TodoDetailCtrl'
+           });
+        }]);
+    </script>
+  </body>
+</html>
